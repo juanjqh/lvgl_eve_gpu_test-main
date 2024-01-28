@@ -1,9 +1,11 @@
+#if ARUDINO
 #include <Arduino.h>
 #include "SPI.h"
+#endif
 #include "src/draw/eve/eve_ram_g.h"
 #include "src/draw/eve/lv_eve.h"
 #include "EVE.h"
-#include "tft.h"
+#include "tft_eve_init.h"
 #include "lvgl.h"
 #include "src/draw/eve/lv_draw_eve.h"
 #include "../lvgl/examples/lv_examples.h"
@@ -24,12 +26,15 @@ static void eve_touch_read(lv_indev_t *drv, lv_indev_data_t *data);
 void my_print(lv_log_level_t level, const char *buf)
 {
     LV_UNUSED(level);
+#if ARUDINO
     Serial.println(buf);
     Serial.flush();
+#endif
 }
 
 void setup()
 {
+#if ARUDINO /*SPI init*/
     pinMode(EVE_CS, OUTPUT);
     digitalWrite(EVE_CS, HIGH);
     pinMode(EVE_PDN, OUTPUT);
@@ -37,22 +42,23 @@ void setup()
     Serial.begin(115200); /* prepare for possible serial debug */
     SPI.begin();          /* sets up the SPI to run in Mode 0 and 1 MHz */
     SPI.beginTransaction(SPISettings(24000000, MSBFIRST, SPI_MODE0));
+#endif
+
     lv_init(); /* LVGL Init */
 #if LV_USE_LOG != 0
     lv_log_register_print_cb(my_print); /* register print function for debugging */
 #endif
     lv_tick_set_cb((lv_tick_get_cb_t)millis);
-    Serial.println("lv_init");
-
-    TFT_init();
+ 
+    TFT_init(); /*Init EVE display*/
 
     EVE_start_cmd_burst();
     EVE_cmd_dl_burst(CMD_DLSTART); /* start the display list */
     EVE_cmd_dl_burst(DL_CLEAR_COLOR_RGB | 0x000000);
     EVE_cmd_dl_burst(DL_CLEAR | CLR_COL | CLR_STN | CLR_TAG);
     EVE_cmd_dl_burst(VERTEX_FORMAT(0));
-    EVE_cmd_dl_burst(VERTEX_TRANSLATE_X(8));
-    EVE_cmd_dl_burst(VERTEX_TRANSLATE_Y(8));
+    // EVE_cmd_dl_burst(VERTEX_TRANSLATE_X(8));
+    // EVE_cmd_dl_burst(VERTEX_TRANSLATE_Y(8));
 
 #if (!LV_USE_DRAW_EVE)
 
@@ -88,30 +94,33 @@ void setup()
     // lv_example_scroll_4();
     // lv_example_scroll_5();
     // lv_example_scroll_6();
-    //lv_example_style_3(); // imagen rotativa
+    // lv_example_style_3();
     // lv_example_style_6();
     // lv_example_textarea_2();
     // lv_example_label_3();
     // lv_animimag();
     // lv_example_style_8();
     // lv_example_scroll_6();
-    //lv_example_menu_5(); /************************/
-    // lv_example_anim_timeline_1();
-    // lv_example_label_3();
-    // lv_example_spinner_1();
-    // lv_example_canvas_3();
-    // lv_example_get_started_4();
-     lv_demo_widgets();
-    // lv_demo_benchmark();
-    // lv_demo_music();
+    lv_example_menu_5(); /***/
+                         // lv_example_anim_timeline_1();
+                         // lv_example_label_3();
+                         // lv_example_spinner_1();
+                         // lv_example_canvas_3();
+                         // lv_example_get_started_4();
+                         // lv_demo_widgets();
+                         // lv_demo_benchmark();
+                         // lv_demo_music();
+    while (1)
+    {
+        lv_timer_handler();
+    }
 }
 
 void loop()
 {
-    lv_timer_handler(); /* let the GUI do its work */
-                        // delay( 5 );
-    // Serial.println("loop");
+    // lv_timer_handler();
 }
+
 /* Display flushing */
 void eve_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *color_p)
 {
@@ -140,16 +149,14 @@ void eve_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *color
 #else
 
     EVE_end_cmd_burst(); /* stop writing to the cmd-fifo, the cmd-FIFO will be executed automatically after this or when DMA is done */
-    
+
     list_size = EVE_memRead16(REG_CMD_DL); /* debug-information, get the size of the last generated display-list */
     EVE_start_cmd_burst();
 
-    
     EVE_cmd_dl_burst(COLOR_RGB(0, 0, 0));
     eve_scissor(0, 0, EVE_HSIZE, EVE_VSIZE);
     EVE_cmd_text_burst(760, 17, 26, EVE_OPT_RIGHTX, "DL:");
     EVE_cmd_number_burst(795, 17, 26, EVE_OPT_RIGHTX, list_size);
-
 
     EVE_cmd_dl_burst(DL_DISPLAY); /* instruct the co-processor to show the list */
     EVE_cmd_dl_burst(CMD_SWAP);   /* make this list active */
@@ -161,8 +168,8 @@ void eve_display_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *color
     EVE_cmd_dl_burst(DL_CLEAR | CLR_COL | CLR_STN | CLR_TAG);
     EVE_cmd_dl_burst(VERTEX_FORMAT(0));
     /* use vertex translate 8 ? */
-    //EVE_cmd_dl_burst(VERTEX_TRANSLATE_X(8));
-    //EVE_cmd_dl_burst(VERTEX_TRANSLATE_Y(8));
+    // EVE_cmd_dl_burst(VERTEX_TRANSLATE_X(8));
+    // EVE_cmd_dl_burst(VERTEX_TRANSLATE_Y(8));
 
 #endif
 
